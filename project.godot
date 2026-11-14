@@ -6,7 +6,7 @@ config_version=5
 
 config/name="HUSTYLE"
 config/description="Hustle in style"
-run/main_scene="res://scenes/trading_floor.tscn"
+run/main_scene="res://scenes/title.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/logos/hustyle.png"
 
