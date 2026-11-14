@@ -6,6 +6,10 @@ extends Node
 func _ready() -> void:
 	Game.new_run()
 	print("day1 prices ", Market.prices)
+	Game.buy_max("mchd")
+	print("buy max mchd shares ", Game.shares("mchd"), " cash ", Game.cash)
+	Game.sell_all("mchd")
+	print("sell all mchd shares ", Game.shares("mchd"), " cash ", Game.cash)
 	Game.buy("prblx", 10)
 	print("after buy cash ", Game.cash, " nw ", Game.net_worth())
 	for i in 5:

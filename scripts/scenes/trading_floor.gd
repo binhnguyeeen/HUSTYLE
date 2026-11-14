@@ -25,6 +25,7 @@ var qty_label: Label
 var less_btn: StepButton
 var more_btn: StepButton
 var action_btn: Button
+var all_btn: Button
 var cash_after: Label
 var holdings_list: VBoxContainer
 var overlay: Control
@@ -247,9 +248,12 @@ func _wallet_panel() -> Control:
 	action_btn = UI.button("", true, 36)
 	action_btn.pressed.connect(_trade)
 	tv.add_child(action_btn)
+	all_btn = UI.button("", false, 36)
+	all_btn.pressed.connect(_trade_all)
 	cash_after = UI.label("", 12, UI.W.REGULAR, C.TEXT2)
 	cash_after.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tv.add_child(cash_after)
+	tv.add_child(all_btn)
 	v.add_child(trade)
 
 	var hl := UI.label("Holdings", 12, UI.W.SEMI, C.TEXT2)
@@ -368,10 +372,14 @@ func _refresh_wallet() -> void:
 		action_btn.text = "Buy %d for %s" % [qty, UI.money(total)]
 		action_btn.disabled = not Game.can_buy(selected, qty)
 		cash_after.text = "Cash after %s" % UI.money(maxf(0.0, Game.cash - total))
+		all_btn.text = "Buy max"
+		all_btn.disabled = Game.max_buy(selected) < 1
 	else:
 		action_btn.text = "Sell %d for %s" % [qty, UI.money(total)]
 		action_btn.disabled = not Game.can_sell(selected, qty)
 		cash_after.text = "Cash after %s" % UI.money(Game.cash + (total if n >= qty else 0.0))
+		all_btn.text = "Sell all"
+		all_btn.disabled = n < 1
 
 	UI.clear(holdings_list)
 	var ids := Game.holdings.keys()
@@ -405,6 +413,13 @@ func _trade() -> void:
 		Game.buy(selected, qty)
 	else:
 		Game.sell(selected, qty)
+
+
+func _trade_all() -> void:
+	if buying:
+		Game.buy_max(selected)
+	else:
+		Game.sell_all(selected)
 
 
 # Overlays

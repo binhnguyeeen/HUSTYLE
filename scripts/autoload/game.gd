@@ -92,6 +92,19 @@ func can_sell(id: String, qty: int) -> bool:
 	return qty > 0 and qty <= shares(id)
 
 
+func max_buy(id: String) -> int:
+	var price: float = Market.prices.get(id, 0.0)
+	return int(floor((cash + 0.0001) / price)) if price > 0.0 else 0
+
+
+func buy_max(id: String) -> void:
+	buy(id, max_buy(id))
+
+
+func sell_all(id: String) -> void:
+	sell(id, shares(id))
+
+
 func buy(id: String, qty: int) -> void:
 	if not can_buy(id, qty):
 		return
