@@ -1,10 +1,10 @@
 class_name C
 extends RefCounted
 
-const BG_BASE := Color("#0B0E11")
-const BG_PANEL := Color("#151A21")
-const BG_RAISED := Color("#1E252E")
-const LINE := Color("#2A323D")
+const BG_BASE := Color("#050608")
+const BG_PANEL := Color("#0B0D11")
+const BG_RAISED := Color("#14181F")
+const LINE := Color("#1E242D")
 const TEXT := Color("#F2F5F8")
 const TEXT2 := Color("#9AA6B2")
 const MUTED := Color("#5F6B78")
