@@ -85,9 +85,9 @@ func _top_bar() -> Control:
 	var logo := UI.logo("res://assets/logos/hustyle.png", 40)
 	logo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	brand.add_child(logo)
-	var name := UI.label("HUSTYLE", 20, UI.W.BOLD, C.ACCENT)
-	name.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	brand.add_child(name)
+	var word := UI.label("HUSTYLE", 20, UI.W.BOLD, C.ACCENT)
+	word.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	brand.add_child(word)
 	h.add_child(brand)
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(16, 0)
