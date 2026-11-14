@@ -1,5 +1,7 @@
 extends Control
 
+const NEWS_ROWS := 4
+
 var selected := ""
 var buying := true
 var qty := 5
@@ -16,7 +18,7 @@ var head_ticker: Label
 var head_price: Label
 var head_pill_holder: Control
 var chart: PriceChart
-var news_label: Label
+var news_list: VBoxContainer
 var pos_rows := {}
 var profit_holder: HBoxContainer
 var buy_tab: Button
@@ -68,6 +70,8 @@ func _build() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(root)
 	root.add_child(_top_bar())
+	root.add_child(UI.line(false))
+	root.add_child(TickerTape.new())
 	root.add_child(UI.line(false))
 	var body := UI.box(false)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -192,17 +196,16 @@ func _stock_panel() -> Control:
 	chart.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(chart)
 	var news := UI.panel(C.BG_PANEL, C.RADIUS_CONTROL)
-	var nh := UI.box(false, 12)
-	var dot := Panel.new()
-	dot.add_theme_stylebox_override("panel", UI.style(C.ACCENT, 3))
-	dot.custom_minimum_size = Vector2(6, 6)
-	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	nh.add_child(dot)
-	news_label = UI.label("", 14)
-	nh.add_child(news_label)
+	var nv := UI.box(true, 8)
+	var nh := UI.box(false)
+	nh.add_child(UI.label("News", 12, UI.W.SEMI, C.TEXT2))
 	nh.add_child(UI.spacer())
 	nh.add_child(UI.label("Rent %s a day" % UI.money(Game.RENT), 12, UI.W.REGULAR, C.MUTED))
-	news.add_child(UI.margin(nh, 16, 10, 16, 10))
+	nv.add_child(nh)
+	news_list = UI.box(true, 4)
+	news_list.custom_minimum_size = Vector2(0, NEWS_ROWS * 20 - 4)
+	nv.add_child(news_list)
+	news.add_child(UI.margin(nv, 16, 10, 16, 12))
 	v.add_child(news)
 	return m
 
@@ -311,7 +314,22 @@ func _refresh() -> void:
 	_refresh_market()
 	_refresh_stock()
 	_refresh_wallet()
-	news_label.text = Market.news
+	_refresh_news()
+
+
+func _refresh_news() -> void:
+	UI.clear(news_list)
+	for i in mini(NEWS_ROWS, Market.feed.size()):
+		var e: Dictionary = Market.feed[i]
+		var row := UI.box(false, 12)
+		var d := UI.label("Day %d" % int(e["day"]), 12, UI.W.REGULAR, C.ACCENT if i == 0 else C.MUTED)
+		d.custom_minimum_size = Vector2(44, 0)
+		row.add_child(d)
+		var t := UI.label(str(e["text"]), 14 if i == 0 else 12, UI.W.REGULAR, C.TEXT if i == 0 else C.TEXT2)
+		t.clip_text = true
+		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(t)
+		news_list.add_child(row)
 
 
 func _refresh_market() -> void:

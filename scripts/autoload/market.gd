@@ -32,6 +32,7 @@ const JITTER_KEEP := 0.7
 ## Crashes and spikes play out inside this part of the day.
 const EVENT_START := 0.25
 const EVENT_END := 0.6
+const FEED_LEN := 20
 
 var stocks: Array[Dictionary] = []
 var prices := {}  # live price
@@ -44,11 +45,13 @@ var history := {}  # id -> Array of { "day": int, "price": float }, past closes
 var change := {}  # id -> live fraction since today's open
 var recovering := {}  # id -> { "days_left", "per_day", "crash_day" }
 var news := ""
+var feed: Array = []  # newest first, { "day": int, "text": String }
 var rng := RandomNumberGenerator.new()
 
 var _announced := {}
 var _finished := {}
 var _jitter := {}
+var _day := 1
 
 
 func _ready() -> void:
@@ -94,6 +97,7 @@ func new_run(seed_value: int) -> void:
 	history.clear()
 	change.clear()
 	recovering.clear()
+	feed.clear()
 	for s in stocks:
 		prices[s["id"]] = float(s["base_price"])
 		history[s["id"]] = []
@@ -109,7 +113,8 @@ func new_run(seed_value: int) -> void:
 			h["price"] = snappedf(h["price"] * k, 0.01)
 		prices[id] = float(s["base_price"])
 	_open_day(1, true)
-	news = "The market opens. Good luck."
+	feed.clear()
+	_say(1, "The market opens. Good luck.")
 	prices_changed.emit()
 
 
@@ -130,7 +135,7 @@ func tick(progress: float) -> void:
 			shape = smoothstep(EVENT_START, EVENT_END, p)
 			if p >= EVENT_START and not _announced.has(id):
 				_announced[id] = true
-				news = "%s is %s" % [s["name"], "crashing" if events[id] == "crash" else "spiking"]
+				_say(_day, "%s is %s" % [s["name"], "crashing" if events[id] == "crash" else "spiking"])
 		_jitter[id] = _jitter[id] * JITTER_KEEP + randf_range(-1.0, 1.0) * volatility(s) * JITTER
 		var price: float = open[id] * (1.0 + target[id] * shape) * (1.0 + _jitter[id] * sin(PI * p))
 		_set_price(id, price)
@@ -152,6 +157,15 @@ func chart_points(id: String, day: int) -> Array:
 	return pts
 
 
+func _say(day: int, text: String) -> void:
+	if text == "":
+		return
+	news = text
+	feed.push_front({ "day": day, "text": text })
+	if feed.size() > FEED_LEN:
+		feed.pop_back()
+
+
 func _set_price(id: String, price: float) -> void:
 	prices[id] = maxf(MIN_PRICE, snappedf(price, 0.01))
 	high[id] = maxf(high[id], prices[id])
@@ -161,6 +175,7 @@ func _set_price(id: String, price: float) -> void:
 
 ## Plans where each stock ends the day. The move plays out through tick().
 func _open_day(day: int, allow_events: bool) -> void:
+	_day = day
 	events.clear()
 	_announced.clear()
 	_finished.clear()
@@ -210,7 +225,7 @@ func _close_day(day: int) -> void:
 		h.append({ "day": day, "price": prices[id] })
 		while h.size() > HISTORY_LEN - 1:
 			h.pop_front()
-	news = _news_line(day)
+	_say(day, _news_line(day))
 
 
 func _pick_crash_victim() -> String:
@@ -244,7 +259,7 @@ func _news_line(day: int) -> String:
 
 
 func to_dict() -> Dictionary:
-	return { "prices": prices, "history": history, "recovering": recovering, "news": news }
+	return { "prices": prices, "history": history, "recovering": recovering, "news": news, "feed": feed }
 
 
 func from_dict(d: Dictionary, seed_value: int, day: int) -> void:
@@ -256,4 +271,5 @@ func from_dict(d: Dictionary, seed_value: int, day: int) -> void:
 	recovering = d.get("recovering", {})
 	_open_day(day, true)
 	news = str(d.get("news", ""))
+	feed = d.get("feed", [])
 	prices_changed.emit()
