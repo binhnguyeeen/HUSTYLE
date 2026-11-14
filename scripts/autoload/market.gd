@@ -33,6 +33,8 @@ const JITTER_KEEP := 0.7
 const EVENT_START := 0.25
 const EVENT_END := 0.6
 const FEED_LEN := 20
+## How many recorded ticks to keep for the chart views.
+const TICKS_KEEP := 720
 
 var stocks: Array[Dictionary] = []
 var prices := {}  # live price
@@ -42,6 +44,8 @@ var low := {}
 var target := {}  # planned move for today, as a fraction of open
 var events := {}  # id -> "crash" or "spike" for today
 var history := {}  # id -> Array of { "day": int, "price": float }, past closes
+var times: Array[float] = []  # market time of each recorded tick, day plus progress
+var ticks := {}  # id -> Array of prices, one per entry in times
 var change := {}  # id -> live fraction since today's open
 var recovering := {}  # id -> { "days_left", "per_day", "crash_day" }
 var news := ""
@@ -98,12 +102,19 @@ func new_run(seed_value: int) -> void:
 	change.clear()
 	recovering.clear()
 	feed.clear()
+	times.clear()
+	ticks.clear()
 	for s in stocks:
 		prices[s["id"]] = float(s["base_price"])
 		history[s["id"]] = []
+		ticks[s["id"]] = []
 	# Quiet days before day 1 so the chart is never empty.
+	var per_day := int(Game.DAY_SECONDS / Game.TICK_SECONDS)
+	_record(float(2 - HISTORY_LEN))
 	for d in range(2 - HISTORY_LEN, 1):
 		_open_day(d, false)
+		for i in range(1, per_day):
+			tick(float(i) / per_day, true)
 		_close_day(d)
 	# Scale the quiet days so day 1 opens at the base price.
 	for s in stocks:
@@ -111,6 +122,9 @@ func new_run(seed_value: int) -> void:
 		var k: float = float(s["base_price"]) / float(prices[id])
 		for h in history[id]:
 			h["price"] = snappedf(h["price"] * k, 0.01)
+		var t: Array = ticks[id]
+		for i in t.size():
+			t[i] = snappedf(t[i] * k, 0.01)
 		prices[id] = float(s["base_price"])
 	_open_day(1, true)
 	feed.clear()
@@ -126,7 +140,7 @@ func advance_day(day: int) -> void:
 
 
 ## Moves live prices. progress runs from 0 at the open to 1 at the close.
-func tick(progress: float) -> void:
+func tick(progress: float, quiet := false) -> void:
 	var p := clampf(progress, 0.0, 1.0)
 	for s in stocks:
 		var id: String = s["id"]
@@ -139,7 +153,9 @@ func tick(progress: float) -> void:
 		_jitter[id] = _jitter[id] * JITTER_KEEP + randf_range(-1.0, 1.0) * volatility(s) * JITTER
 		var price: float = open[id] * (1.0 + target[id] * shape) * (1.0 + _jitter[id] * sin(PI * p))
 		_set_price(id, price)
-	prices_changed.emit()
+	_record(_day + p)
+	if not quiet:
+		prices_changed.emit()
 
 
 func cheapest() -> Dictionary:
@@ -150,11 +166,50 @@ func cheapest() -> Dictionary:
 	return best
 
 
-## Past closes plus the live price as the last point.
-func chart_points(id: String, day: int) -> Array:
-	var pts: Array = history[id].duplicate()
-	pts.append({ "day": day, "price": prices[id] })
-	return pts
+## Chart data for one stock.
+## kind "ticks" shows the last n ticks, kind "days" shows the last n days.
+## Points are Vector2(x from 0 to 1, price).
+func view(id: String, kind: String, n: int, day: int) -> Dictionary:
+	var pts := PackedVector2Array()
+	var labels := []
+	var dividers := []
+	var list: Array = ticks.get(id, [])
+	var count := mini(times.size(), list.size())
+	if kind == "ticks":
+		var first := maxi(0, count - (n + 1))
+		var span := maxi(1, count - 1 - first)
+		for i in range(first, count):
+			pts.append(Vector2(float(i - first) / span, list[i]))
+		labels = [[0.0, "%d sec ago" % int(n * Game.TICK_SECONDS)], [1.0, "Now"]]
+	else:
+		var start := float(day - (n - 1))
+		var i := count - 1
+		while i >= 0 and times[i] >= start:
+			i -= 1
+		for j in range(i + 1, count):
+			pts.append(Vector2((times[j] - start) / n, list[j]))
+		if n == 1:
+			labels = [[0.0, "Open"], [1.0, "Close"]]
+		else:
+			var every := 1 if n <= 5 else 2
+			for d in range(day - (n - 1), day + 1):
+				var x := (d - start) / n
+				if x > 0.0:
+					dividers.append(x)
+				if d >= 1 and (day - d) % every == 0:
+					labels.append([x, "Day %d" % d])
+	return { "points": pts, "labels": labels, "dividers": dividers }
+
+
+func _record(time: float) -> void:
+	times.append(time)
+	for s in stocks:
+		ticks[s["id"]].append(prices[s["id"]])
+	if times.size() > TICKS_KEEP + 60:
+		times = times.slice(times.size() - TICKS_KEEP)
+		for s in stocks:
+			var t: Array = ticks[s["id"]]
+			ticks[s["id"]] = t.slice(t.size() - TICKS_KEEP)
 
 
 func _say(day: int, text: String) -> void:
@@ -225,6 +280,7 @@ func _close_day(day: int) -> void:
 		h.append({ "day": day, "price": prices[id] })
 		while h.size() > HISTORY_LEN - 1:
 			h.pop_front()
+	_record(day + 1.0)
 	_say(day, _news_line(day))
 
 
@@ -269,6 +325,20 @@ func from_dict(d: Dictionary, seed_value: int, day: int) -> void:
 		prices[id] = float(d.get("prices", {}).get(id, s["base_price"]))
 		history[id] = d.get("history", {}).get(id, [])
 	recovering = d.get("recovering", {})
+	# Ticks are not saved. Rebuild a coarse line from the daily closes.
+	times.clear()
+	ticks.clear()
+	for s in stocks:
+		ticks[s["id"]] = []
+	if not stocks.is_empty():
+		var closes: Array = history[stocks[0]["id"]]
+		for i in closes.size():
+			times.append(float(closes[i]["day"]) + 1.0)
+			for s in stocks:
+				var h: Array = history[s["id"]]
+				ticks[s["id"]].append(float(h[i]["price"]) if i < h.size() else prices[s["id"]])
+	if times.is_empty() or times[-1] < float(day):
+		_record(float(day))
 	_open_day(day, true)
 	news = str(d.get("news", ""))
 	feed = d.get("feed", [])

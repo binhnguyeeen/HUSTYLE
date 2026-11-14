@@ -1,10 +1,13 @@
 extends Control
 
 const NEWS_ROWS := 4
+## Chart views: label, kind, size. Ticks are half seconds.
+const VIEWS := [["10s", "ticks", 20], ["20s", "ticks", 40], ["1D", "days", 1], ["5D", "days", 5], ["10D", "days", 10]]
 
 var selected := ""
 var buying := true
 var qty := 5
+var view := 3
 
 var day_label: Label
 var day_bar: ProgressBar
@@ -191,6 +194,12 @@ func _stock_panel() -> Control:
 		stat_labels[key] = sv
 		sb.add_child(sv)
 		stats.add_child(sb)
+	stats.add_child(UI.spacer())
+	var views := UI.box(false, 2)
+	var vg := ButtonGroup.new()
+	for i in VIEWS.size():
+		views.add_child(_view_tab(VIEWS[i][0], vg, i))
+	stats.add_child(views)
 	v.add_child(stats)
 	chart = PriceChart.new()
 	chart.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -289,6 +298,35 @@ func _wallet_panel() -> Control:
 	return p
 
 
+func _view_tab(text: String, group: ButtonGroup, index: int) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.theme_type_variation = &"TabButton"
+	b.toggle_mode = true
+	b.button_group = group
+	b.button_pressed = index == view
+	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.add_theme_font_size_override("font_size", 12)
+	for st in ["normal", "hover"]:
+		b.add_theme_stylebox_override(st, _small_box(Color(0, 0, 0, 0)))
+	for st in ["pressed", "hover_pressed"]:
+		b.add_theme_stylebox_override(st, _small_box(C.BG_RAISED))
+	b.pressed.connect(func():
+		view = index
+		_refresh_stock())
+	return b
+
+
+func _small_box(bg: Color) -> StyleBoxFlat:
+	var sb := UI.style(bg, 6)
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 3
+	sb.content_margin_bottom = 3
+	return sb
+
+
 func _tab(text: String, group: ButtonGroup, on: bool) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -382,7 +420,7 @@ func _refresh_stock() -> void:
 	stat_labels["Open"].text = UI.money(Market.open[selected])
 	stat_labels["High"].text = UI.money(Market.high[selected])
 	stat_labels["Low"].text = UI.money(Market.low[selected])
-	chart.set_points(Market.chart_points(selected, Game.day))
+	chart.set_view(Market.view(selected, VIEWS[view][1], VIEWS[view][2], Game.day))
 
 
 func _refresh_wallet() -> void:
