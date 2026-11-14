@@ -7,6 +7,7 @@ const COIN_R := 22.0
 const PADDLE := Vector2(160, 14)
 const PADDLE_Y := 644.0
 const FLOOR_Y := 680.0
+const BOUNCE_PITCH_STEPS := 12.0
 
 var time_left := Game.HUSTLE_SECONDS
 var bounces := 0
@@ -77,6 +78,8 @@ func _process(delta: float) -> void:
 		var off := (coin.x - paddle_x) / (PADDLE.x / 2)
 		vel = Vector2(off * 360.0, -BOUNCE_SPEED - bounces * 6.0)
 		bounces += 1
+		# Each bounce in a row sounds a little higher.
+		Sfx.play("bounce", 1.0 + minf(bounces, BOUNCE_PITCH_STEPS) * 0.04)
 	if coin.y - COIN_R > 720:
 		_drop()
 	trail.push_front(coin)

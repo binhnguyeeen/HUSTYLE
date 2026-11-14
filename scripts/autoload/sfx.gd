@@ -1,5 +1,6 @@
 extends Node
-## Sound effects. Listens to Game and Market, so UI code never plays sounds.
+## Sound effects. Listens to Game and Market for trades and market events.
+## The side hustle calls play() itself for its bounce.
 
 const VOLUME_DB := -8.0
 const SOUNDS := {
@@ -7,6 +8,7 @@ const SOUNDS := {
 	"sell": preload("res://assets/sfx/sell.wav"),
 	"crash": preload("res://assets/sfx/crash.wav"),
 	"spike": preload("res://assets/sfx/spike.wav"),
+	"bounce": preload("res://assets/sfx/bounce.wav"),
 }
 
 var players := {}
@@ -24,6 +26,7 @@ func _ready() -> void:
 	Market.event_started.connect(play)
 
 
-func play(key: String) -> void:
+func play(key: String, pitch := 1.0) -> void:
 	if players.has(key):
+		players[key].pitch_scale = pitch
 		players[key].play()

@@ -44,5 +44,7 @@ for i in range(int(RATE * 0.5)):
     last = last * 0.92 + random.uniform(-1, 1) * 0.08
     noise.append(last * 6 * math.exp(-7 * i / (RATE * 0.5)))
 save("crash", mix(tone(240, 0.8, 3, 45), noise))
+# Bounce: a short springy blip for the side hustle paddle.
+save("bounce", tone(420, 0.12, 5, 840))
 # Spike: a fast rising sweep.
 save("spike", mix(tone(440, 0.3, 2, 1320), tone(1760, 0.2, 6), 0.26))
