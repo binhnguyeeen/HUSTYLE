@@ -15,7 +15,7 @@ var last_entry := {}
 func post(nickname: String, net_worth: float, bounce_backs: int) -> void:
 	var nick := nickname.strip_edges().left(NICK_MAX)
 	if nick == "":
-		nick = "anon"
+		return
 	last_entry = { "nickname": nick, "net_worth": snappedf(net_worth, 0.01), "bounce_backs": bounce_backs, "t": Time.get_unix_time_from_system() }
 	Save.local_scores.append(last_entry)
 	Save.local_scores = _top(Save.local_scores)
