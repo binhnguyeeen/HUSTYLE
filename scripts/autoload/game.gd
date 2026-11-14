@@ -14,8 +14,10 @@ const TICK_SECONDS := 0.5
 
 ## Broker fee on every buy, as a share of the order.
 const BUY_FEE := 0.01
-## Tax on the profit of every sale. Losses are not taxed.
-const PROFIT_TAX := 0.10
+## Tax on every sale, as a share of the sale amount.
+const SELL_TAX := 0.05
+## Extra tax on the profit of a sale. Off for now. Losses are never taxed.
+const PROFIT_TAX := 0.0
 
 ## Rent taken from cash at the start of each new day.
 ## If cash is short, shares are sold to cover it.
@@ -108,7 +110,9 @@ func buy_cost(id: String, qty: int) -> float:
 
 
 func sell_tax(id: String, qty: int) -> float:
-	return snappedf(maxf(0.0, (Market.prices[id] - avg_cost(id)) * qty) * PROFIT_TAX, 0.01)
+	var sale: float = Market.prices[id] * qty
+	var profit := maxf(0.0, (Market.prices[id] - avg_cost(id)) * qty)
+	return snappedf(sale * SELL_TAX + profit * PROFIT_TAX, 0.01)
 
 
 ## What a sale adds to cash, after tax.
