@@ -36,19 +36,19 @@ func _draw() -> void:
 
 
 ## Draws one stock at x and returns how wide it is.
+## Price and percent get fixed slots, so changing numbers never shift the strip.
 func _item(s: Dictionary, semi: Font, regular: Font, x: float, base: float, paint: bool) -> float:
 	var id: String = s["id"]
 	var ch: float = Market.change.get(id, 0.0)
 	var col := C.UP if ch >= 0 else C.DOWN
-	var parts := [
-		[semi, s["ticker"], C.TEXT, 8.0],
-		[regular, UI.money(Market.prices[id]), C.TEXT2, 8.0],
-	]
+	var price := UI.money(Market.prices[id])
 	var w := 0.0
-	for p in parts:
-		if paint:
-			draw_string(p[0], Vector2(x + w, base), p[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, p[2])
-		w += p[0].get_string_size(p[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x + p[3]
+	if paint:
+		draw_string(semi, Vector2(x, base), s["ticker"], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, C.TEXT)
+	w += semi.get_string_size(s["ticker"], HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x + 8.0
+	if paint:
+		draw_string(regular, Vector2(x + w, base), price, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, C.TEXT2)
+	w += _slot(regular, UI.money(float(s["base_price"]) * 2.0)) + 8.0
 	if paint:
 		var cy := size.y / 2.0
 		var tx := x + w
@@ -58,9 +58,14 @@ func _item(s: Dictionary, semi: Font, regular: Font, x: float, base: float, pain
 		else:
 			tri = [Vector2(tx, cy - 3), Vector2(tx + 7, cy - 3), Vector2(tx + 3.5, cy + 3)]
 		draw_colored_polygon(tri, col)
-	w += 11.0
-	var pct := UI.percent(ch)
-	if paint:
-		draw_string(semi, Vector2(x + w, base), pct, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, col)
-	w += semi.get_string_size(pct, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x + GAP
+		draw_string(semi, Vector2(x + w + 11.0, base), UI.percent(ch), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, col)
+	w += 11.0 + _slot(semi, "00.0%") + GAP
 	return w
+
+
+## Width of a text with every digit as a zero, the widest digit.
+func _slot(font: Font, text: String) -> float:
+	var wide := ""
+	for ch in text:
+		wide += "0" if ch >= "0" and ch <= "9" else ch
+	return font.get_string_size(wide, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
