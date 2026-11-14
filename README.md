@@ -46,6 +46,7 @@ Upload `build/hustyle_web.zip` to itch.io as an HTML project, tick play in the b
 
 ## Tools
 
+- `tools/make_sfx.py` writes the sound effects in `assets/sfx`. Volume is in `scripts/autoload/sfx.gd`.
 - `tools/smoke_test.tscn` plays a fake run without UI and prints the numbers.
 - `tools/view_preview.tscn` opens the Trading Floor on a chart view. Add `-- 0` to `-- 4` to pick it.
 - `tools/broke_preview.tscn` opens the Trading Floor already broke. Add `-- PAYOUT` to see the payout card.

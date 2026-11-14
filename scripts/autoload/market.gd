@@ -2,6 +2,8 @@ extends Node
 ## Prices, styles and the daily news line.
 
 signal prices_changed
+## kind is "crash" or "spike". Fires when one starts during the day.
+signal event_started(kind: String)
 
 const STOCKS_PATH := "res://data/stocks.json"
 const HISTORY_LEN := 12
@@ -150,6 +152,7 @@ func tick(progress: float, quiet := false) -> void:
 			if p >= EVENT_START and not _announced.has(id):
 				_announced[id] = true
 				_say(_day, "%s is %s" % [s["name"], "crashing" if events[id] == "crash" else "spiking"])
+				event_started.emit(events[id])
 		_jitter[id] = _jitter[id] * JITTER_KEEP + randf_range(-1.0, 1.0) * volatility(s) * JITTER
 		var price: float = open[id] * (1.0 + target[id] * shape) * (1.0 + _jitter[id] * sin(PI * p))
 		_set_price(id, price)

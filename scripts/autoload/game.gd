@@ -4,6 +4,8 @@ extends Node
 signal changed
 signal went_broke
 signal run_ended
+signal bought
+signal sold
 
 const CURRENCY := "$"
 const START_CASH := 10000.0
@@ -155,6 +157,7 @@ func buy(id: String, qty: int) -> void:
 	var cost := buy_cost(id, qty)
 	holdings[id] = { "shares": have + qty, "avg_cost": total_cost / (have + qty) }
 	cash = snappedf(maxf(0.0, cash - cost), 0.01)
+	bought.emit()
 	_after_change()
 
 
@@ -167,6 +170,7 @@ func sell(id: String, qty: int) -> void:
 		holdings.erase(id)
 	else:
 		holdings[id]["shares"] = left
+	sold.emit()
 	_after_change()
 
 
