@@ -1,0 +1,35 @@
+; Engine configuration file.
+
+config_version=5
+
+[application]
+
+config/name="HUSTYLE"
+config/description="Hustle in style"
+run/main_scene="res://scenes/trading_floor.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://assets/logos/hustyle.png"
+
+[autoload]
+
+Market="*res://scripts/autoload/market.gd"
+Game="*res://scripts/autoload/game.gd"
+Save="*res://scripts/autoload/save.gd"
+Board="*res://scripts/autoload/board.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[gui]
+
+theme/custom="res://ui/theme.tres"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.043, 0.055, 0.067, 1)

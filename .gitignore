@@ -1,0 +1,4 @@
+.godot/
+build/
+*.zip
+.DS_Store

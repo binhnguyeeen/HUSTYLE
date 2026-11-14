@@ -1,0 +1,5 @@
+[
+  { "id": "mchd", "name": "MicroHard", "ticker": "MCHD", "logo": "res://assets/logos/mchd.png", "base_price": 533.16, "style": "steady" },
+  { "id": "mgle", "name": "Moogle", "ticker": "MGLE", "logo": "res://assets/logos/mgle.png", "base_price": 289.16, "style": "normal" },
+  { "id": "prblx", "name": "Purblox", "ticker": "PRBLX", "logo": "res://assets/logos/prblx.png", "base_price": 43.52, "style": "wild" }
+]
