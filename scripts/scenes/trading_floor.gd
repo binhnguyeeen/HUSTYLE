@@ -174,12 +174,14 @@ func _stock_panel() -> Control:
 	head.add_child(head_holder)
 	var names := UI.box(true, 0)
 	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head_name = UI.label("", 20, UI.W.SEMI)
+	head_name.clip_text = true
+	head_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	head_ticker = UI.label("", 14, UI.W.REGULAR, C.TEXT2)
 	names.add_child(head_name)
 	names.add_child(head_ticker)
 	head.add_child(names)
-	head.add_child(UI.spacer())
 	head_price = UI.label("", 40, UI.W.BOLD)
 	head.add_child(head_price)
 	head_pill_holder = UI.box(false)
@@ -383,14 +385,17 @@ func _market_row(s: Dictionary) -> Control:
 	p.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var h := UI.box(false, 12)
 	p.add_child(UI.margin(h, 12, 10, 12, 10))
-	var logo := UI.logo(s["logo"], 32)
+	var logo := UI.logo(s["logo"], 32, 48)
 	logo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(logo)
 	var names := UI.box(true, 0)
-	names.add_child(UI.label(s["name"], 14, UI.W.SEMI))
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var nl := UI.label(s["name"], 14, UI.W.SEMI)
+	nl.clip_text = true
+	nl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	names.add_child(nl)
 	names.add_child(UI.label(s["ticker"], 12, UI.W.REGULAR, C.TEXT2))
 	h.add_child(names)
-	h.add_child(UI.spacer())
 	var right := UI.box(true, 2)
 	var price := UI.label(UI.money(Market.prices[id]), 14, UI.W.SEMI)
 	price.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -399,6 +404,7 @@ func _market_row(s: Dictionary) -> Control:
 	h.add_child(right)
 	for c in [h, logo, names, right]:
 		c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.mouse_filter = Control.MOUSE_FILTER_PASS
 	p.gui_input.connect(func(e: InputEvent):
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			selected = id
@@ -411,7 +417,7 @@ func _refresh_stock() -> void:
 	if s.is_empty():
 		return
 	UI.clear(head_holder)
-	head_holder.add_child(UI.logo(s["logo"], 56))
+	head_holder.add_child(UI.logo(s["logo"], 56, 0, 110))
 	head_name.text = s["name"]
 	head_ticker.text = s["ticker"]
 	head_price.text = UI.money(Market.prices[selected])

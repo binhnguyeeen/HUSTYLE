@@ -78,17 +78,23 @@ static func button(text: String, primary := false, height := 36) -> Button:
 	return b
 
 
-static func logo(path: String, px: int) -> Control:
+## Logo scaled to fit a box, keeping its proportions.
+## With max_w set, the box grows wider for wide logos, up to max_w.
+static func logo(path: String, h: int, w := 0, max_w := 0) -> Control:
+	var box := Vector2(w if w > 0 else h, h)
 	if path != "" and ResourceLoader.exists(path):
 		var t := TextureRect.new()
 		t.texture = load(path)
+		if max_w > 0:
+			var ts: Vector2 = t.texture.get_size()
+			box.x = clampf(h * ts.x / ts.y, h, max_w)
 		t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		t.custom_minimum_size = Vector2(px, px)
+		t.custom_minimum_size = box
 		return t
 	# Missing logo: gray rounded tile.
 	var p := panel(C.BG_RAISED, 6, 0, C.LINE)
-	p.custom_minimum_size = Vector2(px, px)
+	p.custom_minimum_size = box
 	return p
 
 
@@ -148,4 +154,5 @@ static func clock(seconds: float) -> String:
 
 static func clear(node: Node) -> void:
 	for c in node.get_children():
+		node.remove_child(c)
 		c.queue_free()
