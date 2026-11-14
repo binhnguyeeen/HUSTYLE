@@ -8,6 +8,7 @@ var selected := ""
 var buying := true
 var qty := 5
 var view := 3
+var _news_sig := ""
 
 var day_label: Label
 var day_bar: ProgressBar
@@ -358,14 +359,20 @@ func _refresh() -> void:
 
 
 func _refresh_news() -> void:
+	# Rebuild only when a new headline arrives, so the box stays still.
+	var sig := str(Market.feed.slice(0, NEWS_ROWS))
+	if sig == _news_sig:
+		return
+	_news_sig = sig
 	UI.clear(news_list)
 	for i in mini(NEWS_ROWS, Market.feed.size()):
 		var e: Dictionary = Market.feed[i]
 		var row := UI.box(false, 12)
+		row.custom_minimum_size = Vector2(0, 16)
 		var d := UI.label("Day %d" % int(e["day"]), 12, UI.W.REGULAR, C.ACCENT if i == 0 else C.MUTED)
 		d.custom_minimum_size = Vector2(44, 0)
 		row.add_child(d)
-		var t := UI.label(str(e["text"]), 14 if i == 0 else 12, UI.W.REGULAR, C.TEXT if i == 0 else C.TEXT2)
+		var t := UI.label(str(e["text"]), 12, UI.W.SEMI if i == 0 else UI.W.REGULAR, C.TEXT if i == 0 else C.TEXT2)
 		t.clip_text = true
 		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(t)
@@ -385,7 +392,7 @@ func _market_row(s: Dictionary) -> Control:
 	p.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var h := UI.box(false, 12)
 	p.add_child(UI.margin(h, 12, 10, 12, 10))
-	var logo := UI.logo(s["logo"], 32, 48)
+	var logo := UI.logo(s["logo"], 32, 48, 0, s.get("light_tile", false))
 	logo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	h.add_child(logo)
 	var names := UI.box(true, 0)
@@ -417,7 +424,7 @@ func _refresh_stock() -> void:
 	if s.is_empty():
 		return
 	UI.clear(head_holder)
-	head_holder.add_child(UI.logo(s["logo"], 56, 0, 110))
+	head_holder.add_child(UI.logo(s["logo"], 56, 0, 110, s.get("light_tile", false)))
 	head_name.text = s["name"]
 	head_ticker.text = s["ticker"]
 	head_price.text = UI.money(Market.prices[selected])

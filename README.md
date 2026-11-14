@@ -19,6 +19,7 @@ Open the folder in Godot 4.7 and press Play. The game starts at `scenes/title.ts
 - `style` is one of `steady`, `normal`, `wild` or `meme`. Missing or unknown means `normal`.
 - `volatility` is optional and overrides the style's daily move range for that stock.
 - A missing logo file shows a gray tile.
+- `"light_tile": true` puts a small white tile behind a logo that is too dark to read on the dark theme.
 
 No code changes are needed. The Market list scrolls.
 

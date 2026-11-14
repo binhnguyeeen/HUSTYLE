@@ -11,6 +11,8 @@ const MUTED := Color("#5F6B78")
 const UP := Color("#1FD17A")
 const DOWN := Color("#FF4D5E")
 const ACCENT := Color("#EDC75B")
+## Tile behind logos that are too dark to read on the dark theme.
+const LOGO_TILE := Color("#FFFFFF")
 
 const FONT_SIZES := [12, 14, 16, 20, 28, 40]
 const RADIUS_CONTROL := 8

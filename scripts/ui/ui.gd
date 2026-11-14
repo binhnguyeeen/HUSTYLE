@@ -80,22 +80,37 @@ static func button(text: String, primary := false, height := 36) -> Button:
 
 ## Logo scaled to fit a box, keeping its proportions.
 ## With max_w set, the box grows wider for wide logos, up to max_w.
-static func logo(path: String, h: int, w := 0, max_w := 0) -> Control:
+## With tile set, the logo sits on a small light tile.
+static func logo(path: String, h: int, w := 0, max_w := 0, tile := false) -> Control:
 	var box := Vector2(w if w > 0 else h, h)
-	if path != "" and ResourceLoader.exists(path):
-		var t := TextureRect.new()
-		t.texture = load(path)
-		if max_w > 0:
-			var ts: Vector2 = t.texture.get_size()
-			box.x = clampf(h * ts.x / ts.y, h, max_w)
-		t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	if path == "" or not ResourceLoader.exists(path):
+		# Missing logo: gray rounded tile.
+		var p := panel(C.BG_RAISED, 6, 0, C.LINE)
+		p.custom_minimum_size = box
+		return p
+	var tex: Texture2D = load(path)
+	var ts: Vector2 = tex.get_size()
+	if max_w > 0:
+		box.x = clampf(h * ts.x / ts.y, h, max_w)
+	var t := TextureRect.new()
+	t.texture = tex
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not tile:
 		t.custom_minimum_size = box
 		return t
-	# Missing logo: gray rounded tile.
-	var p := panel(C.BG_RAISED, 6, 0, C.LINE)
-	p.custom_minimum_size = box
-	return p
+	var pad := maxf(3.0, h * 0.08)
+	var inner := box - Vector2(pad, pad) * 2.0
+	t.custom_minimum_size = (ts * minf(inner.x / ts.x, inner.y / ts.y)).floor()
+	var chip := panel(C.LOGO_TILE, 6, int(pad))
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(t)
+	var c := CenterContainer.new()
+	c.custom_minimum_size = box
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.add_child(chip)
+	return c
 
 
 ## Up or down triangle drawn as a shape, never as a plus or minus sign.
