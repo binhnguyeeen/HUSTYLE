@@ -128,7 +128,7 @@ func new_run(seed_value: int) -> void:
 		prices[id] = float(s["base_price"])
 	_open_day(1, true)
 	feed.clear()
-	_say(1, "The market opens. Good luck.")
+	_say(1, "The market opens")
 	prices_changed.emit()
 
 
