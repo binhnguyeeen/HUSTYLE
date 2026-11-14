@@ -4,4 +4,3 @@ build/
 .DS_Store
 .claude/
 screenshots/
-/index.*.import
