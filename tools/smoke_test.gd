@@ -4,8 +4,6 @@ extends Node
 
 
 func _ready() -> void:
-	Game.bought.connect(func(): print("sound buy playing ", Sfx.players["buy"].playing))
-	Market.event_started.connect(func(k): print("sound event ", k))
 	Game.new_run()
 	print("day1 prices ", Market.prices)
 	Game.buy_max("mchd")
