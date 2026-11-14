@@ -26,13 +26,29 @@ const RECOVER_DAYS_MAX := 3
 const SPIKE_MIN := 0.2
 const SPIKE_MAX := 0.5
 
+## Intraday: how much prices wobble between ticks, as a share of volatility.
+const JITTER := 0.25
+const JITTER_KEEP := 0.7
+## Crashes and spikes play out inside this part of the day.
+const EVENT_START := 0.25
+const EVENT_END := 0.6
+
 var stocks: Array[Dictionary] = []
-var prices := {}
-var history := {}  # id -> Array of { "day": int, "price": float }
-var change := {}  # id -> fraction since yesterday
+var prices := {}  # live price
+var open := {}  # price at the start of today
+var high := {}
+var low := {}
+var target := {}  # planned move for today, as a fraction of open
+var events := {}  # id -> "crash" or "spike" for today
+var history := {}  # id -> Array of { "day": int, "price": float }, past closes
+var change := {}  # id -> live fraction since today's open
 var recovering := {}  # id -> { "days_left", "per_day", "crash_day" }
 var news := ""
 var rng := RandomNumberGenerator.new()
+
+var _announced := {}
+var _finished := {}
+var _jitter := {}
 
 
 func _ready() -> void:
@@ -83,7 +99,8 @@ func new_run(seed_value: int) -> void:
 		history[s["id"]] = []
 	# Quiet days before day 1 so the chart is never empty.
 	for d in range(2 - HISTORY_LEN, 1):
-		_move_all(d, false)
+		_open_day(d, false)
+		_close_day(d)
 	# Scale the quiet days so day 1 opens at the base price.
 	for s in stocks:
 		var id: String = s["id"]
@@ -91,12 +108,32 @@ func new_run(seed_value: int) -> void:
 		for h in history[id]:
 			h["price"] = snappedf(h["price"] * k, 0.01)
 		prices[id] = float(s["base_price"])
+	_open_day(1, true)
 	news = "The market opens. Good luck."
 	prices_changed.emit()
 
 
+## Closes the day before and opens the given day.
 func advance_day(day: int) -> void:
-	_move_all(day, true)
+	_close_day(day - 1)
+	_open_day(day, true)
+	prices_changed.emit()
+
+
+## Moves live prices. progress runs from 0 at the open to 1 at the close.
+func tick(progress: float) -> void:
+	var p := clampf(progress, 0.0, 1.0)
+	for s in stocks:
+		var id: String = s["id"]
+		var shape := p
+		if events.has(id):
+			shape = smoothstep(EVENT_START, EVENT_END, p)
+			if p >= EVENT_START and not _announced.has(id):
+				_announced[id] = true
+				news = "%s is %s" % [s["name"], "crashing" if events[id] == "crash" else "spiking"]
+		_jitter[id] = _jitter[id] * JITTER_KEEP + randf_range(-1.0, 1.0) * volatility(s) * JITTER
+		var price: float = open[id] * (1.0 + target[id] * shape) * (1.0 + _jitter[id] * sin(PI * p))
+		_set_price(id, price)
 	prices_changed.emit()
 
 
@@ -108,49 +145,72 @@ func cheapest() -> Dictionary:
 	return best
 
 
-func _move_all(day: int, allow_events: bool) -> void:
-	var events := {}
-	var finished := {}
+## Past closes plus the live price as the last point.
+func chart_points(id: String, day: int) -> Array:
+	var pts: Array = history[id].duplicate()
+	pts.append({ "day": day, "price": prices[id] })
+	return pts
+
+
+func _set_price(id: String, price: float) -> void:
+	prices[id] = maxf(MIN_PRICE, snappedf(price, 0.01))
+	high[id] = maxf(high[id], prices[id])
+	low[id] = minf(low[id], prices[id])
+	change[id] = prices[id] / open[id] - 1.0
+
+
+## Plans where each stock ends the day. The move plays out through tick().
+func _open_day(day: int, allow_events: bool) -> void:
+	events.clear()
+	_announced.clear()
+	_finished.clear()
 	for s in stocks:
 		var id: String = s["id"]
 		var st: Dictionary = STYLES[s["style"]]
 		var vol := volatility(s)
+		open[id] = prices[id]
+		high[id] = prices[id]
+		low[id] = prices[id]
+		change[id] = 0.0
+		_jitter[id] = 0.0
 		var c: float
 		if recovering.has(id):
 			var r: Dictionary = recovering[id]
 			c = r["per_day"] + rng.randf_range(-vol, vol) * 0.25
 			r["days_left"] -= 1
 			if r["days_left"] <= 0:
-				finished[id] = r["crash_day"]
+				_finished[id] = int(r["crash_day"])
 				recovering.erase(id)
 		else:
 			c = rng.randf_range(-vol, vol) + st["drift"]
 			if allow_events and rng.randf() < st["spike_chance"]:
 				c = rng.randf_range(SPIKE_MIN, SPIKE_MAX)
 				events[id] = "spike"
-		change[id] = c
+		target[id] = c
 	if allow_events and rng.randf() < CRASH_CHANCE:
 		var victim := _pick_crash_victim()
 		if victim != "":
 			var drop := rng.randf_range(CRASH_MIN, CRASH_MAX)
 			var days := rng.randi_range(RECOVER_DAYS_MIN, RECOVER_DAYS_MAX)
-			change[victim] = -drop
+			target[victim] = -drop
 			recovering[victim] = {
 				"days_left": days,
 				"per_day": pow(1.0 / (1.0 - drop), 1.0 / days) - 1.0,
 				"crash_day": day,
 			}
 			events[victim] = "crash"
-			finished.erase(victim)
+			_finished.erase(victim)
+
+
+func _close_day(day: int) -> void:
 	for s in stocks:
 		var id: String = s["id"]
-		prices[id] = maxf(MIN_PRICE, snappedf(prices[id] * (1.0 + change[id]), 0.01))
+		_set_price(id, open[id] * (1.0 + target[id]))
 		var h: Array = history[id]
 		h.append({ "day": day, "price": prices[id] })
-		if h.size() > HISTORY_LEN:
+		while h.size() > HISTORY_LEN - 1:
 			h.pop_front()
-	if allow_events:
-		news = _news_line(day, events, finished)
+	news = _news_line(day)
 
 
 func _pick_crash_victim() -> String:
@@ -166,22 +226,21 @@ func _pick_crash_victim() -> String:
 	return ""
 
 
-func _news_line(day: int, events: Dictionary, finished: Dictionary) -> String:
+func _news_line(day: int) -> String:
 	for id in events:
 		var n: String = stock(id)["name"]
-		if events[id] == "crash":
-			return "%s crashed %s on day %d" % [n, UI.percent(change[id]), day]
-		return "%s spiked %s on day %d" % [n, UI.percent(change[id]), day]
-	for id in finished:
-		return "%s dipped on day %d and climbed back by day %d" % [stock(id)["name"], finished[id], day]
+		var verb := "crashed" if events[id] == "crash" else "spiked"
+		return "%s %s %s on day %d" % [n, verb, UI.percent(change[id]), day]
+	for id in _finished:
+		return "%s dipped on day %d and climbed back by day %d" % [stock(id)["name"], _finished[id], day]
 	var top := ""
 	for s in stocks:
 		if top == "" or absf(change[s["id"]]) > absf(change[top]):
 			top = s["id"]
 	if top == "":
 		return ""
-	var verb := "rose" if change[top] >= 0 else "slipped"
-	return "%s %s %s on day %d" % [stock(top)["name"], verb, UI.percent(change[top]), day]
+	var word := "rose" if change[top] >= 0 else "slipped"
+	return "%s %s %s on day %d" % [stock(top)["name"], word, UI.percent(change[top]), day]
 
 
 func to_dict() -> Dictionary:
@@ -193,11 +252,8 @@ func from_dict(d: Dictionary, seed_value: int, day: int) -> void:
 	for s in stocks:
 		var id: String = s["id"]
 		prices[id] = float(d.get("prices", {}).get(id, s["base_price"]))
-		history[id] = d.get("history", {}).get(id, [{ "day": day, "price": prices[id] }])
-		change[id] = 0.0
-		var h: Array = history[id]
-		if h.size() >= 2:
-			change[id] = h[-1]["price"] / h[-2]["price"] - 1.0
+		history[id] = d.get("history", {}).get(id, [])
 	recovering = d.get("recovering", {})
+	_open_day(day, true)
 	news = str(d.get("news", ""))
 	prices_changed.emit()

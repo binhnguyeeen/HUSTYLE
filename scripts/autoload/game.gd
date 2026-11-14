@@ -9,6 +9,13 @@ const CURRENCY := "$"
 const START_CASH := 10000.0
 const DAYS := 30
 const DAY_SECONDS := 30.0
+## How often prices move inside a day.
+const TICK_SECONDS := 0.5
+
+## Broker fee on every buy, as a share of the order.
+const BUY_FEE := 0.01
+## Tax on the profit of every sale. Losses are not taxed.
+const PROFIT_TAX := 0.10
 
 ## Rent taken from cash at the start of each new day.
 ## If cash is short, shares are sold to cover it.
@@ -37,6 +44,7 @@ var last_payout_shares := 0
 var last_payout_ticker := ""
 var show_payout := false
 var final_net_worth := 0.0
+var _tick_wait := 0.0
 
 
 func _process(delta: float) -> void:
@@ -45,6 +53,12 @@ func _process(delta: float) -> void:
 	day_time_left -= delta
 	if day_time_left <= 0.0:
 		next_day()
+		return
+	_tick_wait += delta
+	if _tick_wait >= TICK_SECONDS:
+		_tick_wait = 0.0
+		Market.tick(1.0 - day_time_left / DAY_SECONDS)
+		_track_lowest()
 
 
 func new_run() -> void:
@@ -84,8 +98,26 @@ func net_worth() -> float:
 	return cash + holdings_value()
 
 
+func buy_fee(id: String, qty: int) -> float:
+	return snappedf(Market.prices[id] * qty * BUY_FEE, 0.01)
+
+
+## What a buy takes from cash, fee included.
+func buy_cost(id: String, qty: int) -> float:
+	return snappedf(Market.prices[id] * qty, 0.01) + buy_fee(id, qty)
+
+
+func sell_tax(id: String, qty: int) -> float:
+	return snappedf(maxf(0.0, (Market.prices[id] - avg_cost(id)) * qty) * PROFIT_TAX, 0.01)
+
+
+## What a sale adds to cash, after tax.
+func sell_proceeds(id: String, qty: int) -> float:
+	return snappedf(Market.prices[id] * qty, 0.01) - sell_tax(id, qty)
+
+
 func can_buy(id: String, qty: int) -> bool:
-	return qty > 0 and Market.prices[id] * qty <= cash + 0.0001
+	return qty > 0 and buy_cost(id, qty) <= cash + 0.0001
 
 
 func can_sell(id: String, qty: int) -> bool:
@@ -94,7 +126,12 @@ func can_sell(id: String, qty: int) -> bool:
 
 func max_buy(id: String) -> int:
 	var price: float = Market.prices.get(id, 0.0)
-	return int(floor((cash + 0.0001) / price)) if price > 0.0 else 0
+	if price <= 0.0:
+		return 0
+	var n := int(floor((cash + 0.0001) / (price * (1.0 + BUY_FEE))))
+	while n > 0 and not can_buy(id, n):
+		n -= 1
+	return n
 
 
 func buy_max(id: String) -> void:
@@ -111,15 +148,16 @@ func buy(id: String, qty: int) -> void:
 	var price: float = Market.prices[id]
 	var have := shares(id)
 	var total_cost := avg_cost(id) * have + price * qty
+	var cost := buy_cost(id, qty)
 	holdings[id] = { "shares": have + qty, "avg_cost": total_cost / (have + qty) }
-	cash = snappedf(cash - price * qty, 0.01)
+	cash = snappedf(maxf(0.0, cash - cost), 0.01)
 	_after_change()
 
 
 func sell(id: String, qty: int) -> void:
 	if not can_sell(id, qty):
 		return
-	cash = snappedf(cash + Market.prices[id] * qty, 0.01)
+	cash = snappedf(cash + sell_proceeds(id, qty), 0.01)
 	var left := shares(id) - qty
 	if left <= 0:
 		holdings.erase(id)

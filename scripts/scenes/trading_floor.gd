@@ -26,6 +26,8 @@ var less_btn: StepButton
 var more_btn: StepButton
 var action_btn: Button
 var all_btn: Button
+var fee_label: Label
+var stat_labels := {}
 var cash_after: Label
 var holdings_list: VBoxContainer
 var overlay: Control
@@ -39,6 +41,7 @@ func _ready() -> void:
 		selected = Market.stocks[0]["id"]
 	_build()
 	Game.changed.connect(_refresh)
+	Market.prices_changed.connect(_refresh)
 	Game.went_broke.connect(_show_broke)
 	Game.run_ended.connect(func(): get_tree().change_scene_to_file("res://scenes/results.tscn"))
 	_refresh()
@@ -176,6 +179,15 @@ func _stock_panel() -> Control:
 	head_pill_holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(head_pill_holder)
 	v.add_child(head)
+	var stats := UI.box(false, 24)
+	for key in ["Open", "High", "Low"]:
+		var sb := UI.box(false, 8)
+		sb.add_child(UI.label(key, 12, UI.W.REGULAR, C.TEXT2))
+		var sv := UI.label("", 12, UI.W.SEMI)
+		stat_labels[key] = sv
+		sb.add_child(sv)
+		stats.add_child(sb)
+	v.add_child(stats)
 	chart = PriceChart.new()
 	chart.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(chart)
@@ -188,6 +200,8 @@ func _stock_panel() -> Control:
 	nh.add_child(dot)
 	news_label = UI.label("", 14)
 	nh.add_child(news_label)
+	nh.add_child(UI.spacer())
+	nh.add_child(UI.label("Rent %s a day" % UI.money(Game.RENT), 12, UI.W.REGULAR, C.MUTED))
 	news.add_child(UI.margin(nh, 16, 10, 16, 10))
 	v.add_child(news)
 	return m
@@ -250,9 +264,13 @@ func _wallet_panel() -> Control:
 	tv.add_child(action_btn)
 	all_btn = UI.button("", false, 36)
 	all_btn.pressed.connect(_trade_all)
+	var fee_row := UI.box(false)
+	fee_label = UI.label("", 12, UI.W.REGULAR, C.TEXT2)
+	fee_row.add_child(fee_label)
+	fee_row.add_child(UI.spacer())
 	cash_after = UI.label("", 12, UI.W.REGULAR, C.TEXT2)
-	cash_after.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tv.add_child(cash_after)
+	fee_row.add_child(cash_after)
+	tv.add_child(fee_row)
 	tv.add_child(all_btn)
 	v.add_child(trade)
 
@@ -343,7 +361,10 @@ func _refresh_stock() -> void:
 	head_price.text = UI.money(Market.prices[selected])
 	UI.clear(head_pill_holder)
 	head_pill_holder.add_child(UI.pill(Market.change.get(selected, 0.0)))
-	chart.set_points(Market.history[selected])
+	stat_labels["Open"].text = UI.money(Market.open[selected])
+	stat_labels["High"].text = UI.money(Market.high[selected])
+	stat_labels["Low"].text = UI.money(Market.low[selected])
+	chart.set_points(Market.chart_points(selected, Game.day))
 
 
 func _refresh_wallet() -> void:
@@ -367,17 +388,20 @@ func _refresh_wallet() -> void:
 	more_btn.disabled = (not buying and qty >= n)
 	less_btn.queue_redraw()
 	more_btn.queue_redraw()
-	var total := price * qty
 	if buying:
-		action_btn.text = "Buy %d for %s" % [qty, UI.money(total)]
+		var cost := Game.buy_cost(selected, qty)
+		action_btn.text = "Buy %d for %s" % [qty, UI.money(cost)]
 		action_btn.disabled = not Game.can_buy(selected, qty)
-		cash_after.text = "Cash after %s" % UI.money(maxf(0.0, Game.cash - total))
+		fee_label.text = "Fee %s" % UI.money(Game.buy_fee(selected, qty))
+		cash_after.text = "Cash after %s" % UI.money(maxf(0.0, Game.cash - cost))
 		all_btn.text = "Buy max"
 		all_btn.disabled = Game.max_buy(selected) < 1
 	else:
-		action_btn.text = "Sell %d for %s" % [qty, UI.money(total)]
+		var got := Game.sell_proceeds(selected, qty) if n >= qty else 0.0
+		action_btn.text = "Sell %d for %s" % [qty, UI.money(got)]
 		action_btn.disabled = not Game.can_sell(selected, qty)
-		cash_after.text = "Cash after %s" % UI.money(Game.cash + (total if n >= qty else 0.0))
+		fee_label.text = "Tax %s" % UI.money(Game.sell_tax(selected, qty) if n >= qty else 0.0)
+		cash_after.text = "Cash after %s" % UI.money(Game.cash + got)
 		all_btn.text = "Sell all"
 		all_btn.disabled = n < 1
 

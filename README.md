@@ -26,8 +26,8 @@ No code changes are needed. The Market list scrolls.
 
 All numbers are constants at the top of these files:
 
-- `scripts/autoload/market.gd`: styles, crash odds and size, recovery days, meme spikes.
-- `scripts/autoload/game.gd`: starting cash, days, day length, rent, payout tiers and cap.
+- `scripts/autoload/market.gd`: styles, crash odds and size, recovery days, meme spikes, intraday wobble.
+- `scripts/autoload/game.gd`: starting cash, days, day length, tick speed, buy fee, profit tax, rent, payout tiers and cap.
 - `scripts/autoload/board.gd`: Hall of Fame size, nickname length, online board switch.
 - `scripts/colors.gd`: colors and layout sizes. Run `tools/build_theme.gd` after changing colors:
 
