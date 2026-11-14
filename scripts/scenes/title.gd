@@ -1,5 +1,7 @@
 extends Control
 
+var how_overlay: Control
+
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -49,7 +51,7 @@ func _ready() -> void:
 	hof.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/hall_of_fame.tscn"))
 	buttons.add_child(hof)
 	var how := _btn("How to play")
-	how.disabled = true
+	how.pressed.connect(show_how)
 	buttons.add_child(how)
 	col.add_child(buttons)
 
@@ -57,6 +59,27 @@ func _ready() -> void:
 		var warn := UI.label("Progress will not be saved in this browser", 12, UI.W.REGULAR, C.MUTED)
 		warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		col.add_child(warn)
+
+
+func show_how() -> void:
+	if how_overlay:
+		return
+	var lines := [
+		"Trade %d stocks over %d days. A day lasts %d seconds." % [Market.stocks.size(), Game.DAYS, int(Game.DAY_SECONDS)],
+		"Prices move all day. Watch the news for crashes and spikes.",
+		"Every buy costs a %s fee. Every sale pays a %s tax." % [_pct(Game.BUY_FEE), _pct(Game.SELL_TAX)],
+		"Rent takes %s from your cash each new day." % UI.money(Game.RENT),
+		"Broke? A side hustle gets you back in the game.",
+		"Cash out any time. Your final net worth is your score.",
+	]
+	how_overlay = Modal.make_list("How to play", lines, "Got it", func():
+		how_overlay.queue_free()
+		how_overlay = null)
+	add_child(how_overlay)
+
+
+func _pct(v: float) -> String:
+	return "%d%%" % int(round(v * 100.0))
 
 
 func _btn(text: String, primary := false) -> Button:
