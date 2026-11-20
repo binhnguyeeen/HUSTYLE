@@ -74,6 +74,8 @@ func _send(entry: Dictionary) -> void:
 func _request(url: String, method: int, body: String) -> Array:
 	var req := HTTPRequest.new()
 	req.timeout = TIMEOUT
+	# In the browser, fetch already unzips the reply. Unzipping again in Godot fails.
+	req.accept_gzip = false
 	add_child(req)
 	var headers := ["apikey: " + BOARD_KEY, "Content-Type: application/json", "Prefer: return=minimal"]
 	if req.request(url, headers, method, body) != OK:
