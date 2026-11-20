@@ -25,6 +25,8 @@ const RECOVER_DAYS_MIN := 2
 const RECOVER_DAYS_MAX := 3
 const SPIKE_MIN := 0.2
 const SPIKE_MAX := 0.5
+## Daily pull back toward the base price. 50% under base adds about +8% a day.
+const REVERT := 0.08
 
 ## Intraday: how much prices wobble between ticks, as a share of volatility.
 const JITTER := 0.25
@@ -253,6 +255,8 @@ func _open_day(day: int, allow_events: bool) -> void:
 				recovering.erase(id)
 		else:
 			c = rng.randf_range(-vol, vol) + st["drift"]
+			# Prices far from their base drift back toward it, so dips bounce back.
+			c += REVERT * (float(s["base_price"]) / prices[id] - 1.0)
 			if allow_events and rng.randf() < st["spike_chance"]:
 				c = rng.randf_range(SPIKE_MIN, SPIKE_MAX)
 				events[id] = "spike"

@@ -6,7 +6,7 @@ signal went_broke
 signal run_ended
 
 const CURRENCY := "$"
-const START_CASH := 10000.0
+const START_CASH := 2000.0
 const DAYS := 30
 const DAY_SECONDS := 30.0
 ## How often prices move inside a day.
@@ -25,10 +25,23 @@ const RENT := 200.0
 ## Days without rent after a payout, counting the hustle day.
 const RENT_FREE_AFTER_PAYOUT := 3
 
-## Side hustle: bounces needed per share tier, paid in cheapest share price.
-const HUSTLE_SECONDS := 20.0
-const PAYOUT_TIERS := [[20, 3], [10, 2], [0, 1]]
-const PAYOUT_CAP := 0.05  # cash after payout is at most this share of START_CASH
+## Side hustle: keep the coin up for HUSTLE_SECONDS. A drop restarts the clock.
+## The round ends early after MAX_DROPS drops.
+const HUSTLE_SECONDS := 15.0
+const MAX_DROPS := 5
+## Payout by drops: at most this many drops pays this much, in dollars.
+const PAYOUT_TIERS := [[0, 500.0], [2, 350.0], [MAX_DROPS, 200.0]]
+const PAYOUT_CAP := 0.3  # cash after payout is at most this share of START_CASH
+
+## Block Breaker side hustle: $ blocks pay, clearing the board pays a bonus.
+const BREAKER_SECONDS := 45.0
+const BREAKER_LIVES := 3
+const BREAKER_CASH_BLOCK := 40.0
+const BREAKER_CLEAR_BONUS := 150.0
+## Paid even with no $ blocks, so a bad round still gets you back in.
+const BREAKER_MIN := 100.0
+## Going broke opens one of these at random.
+const HUSTLES := ["res://scenes/side_hustle.tscn", "res://scenes/block_breaker.tscn"]
 
 var running := false
 var paused := false
@@ -202,16 +215,24 @@ func is_broke() -> bool:
 	return holdings.is_empty() and cash < Market.prices[c["id"]]
 
 
-## Called when the side hustle ends.
-func finish_hustle(bounces: int) -> void:
+## Called when the coin bounce side hustle ends.
+func finish_hustle(drops: int) -> void:
+	var pay := 0.0
+	for tier in PAYOUT_TIERS:
+		if drops <= tier[0]:
+			pay = tier[1]
+			break
+	_payout(pay)
+
+
+## Called when Block Breaker ends, with what the $ blocks and bonus earned.
+func finish_breaker(earned: float) -> void:
+	_payout(maxf(earned, BREAKER_MIN))
+
+
+func _payout(pay: float) -> void:
 	var c := Market.cheapest()
 	var price: float = Market.prices[c["id"]]
-	var n := 1
-	for tier in PAYOUT_TIERS:
-		if bounces >= tier[0]:
-			n = tier[1]
-			break
-	var pay := price * n
 	pay = minf(pay, maxf(0.0, START_CASH * PAYOUT_CAP - cash))
 	pay = snappedf(pay, 0.01)
 	cash = snappedf(cash + pay, 0.01)

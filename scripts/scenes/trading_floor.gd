@@ -519,7 +519,7 @@ func _trade_all() -> void:
 
 func _show_broke() -> void:
 	_open_overlay(Modal.make("You're broke", "No cash and no shares. Time to bounce back.", "Start a side hustle",
-		func(): get_tree().change_scene_to_file("res://scenes/side_hustle.tscn")))
+		func(): get_tree().change_scene_to_file(Game.HUSTLES.pick_random())))
 
 
 func _show_payout() -> void:

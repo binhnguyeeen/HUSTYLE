@@ -19,8 +19,11 @@ func _ready() -> void:
 	Game.cash = 150.0
 	Game.next_day()
 	print("forced broke? ", Game.is_broke(), " cash ", Game.cash)
-	Game.finish_hustle(14)
+	Game.finish_hustle(0)
 	print("payout ", Game.last_payout, " shares ", Game.last_payout_shares, " of ", Game.last_payout_ticker, " cash ", Game.cash, " bb ", Game.bounce_backs, " day ", Game.day)
+	Game.cash = 0.0
+	Game.finish_breaker(40.0)
+	print("breaker payout ", Game.last_payout, " cash ", Game.cash, " bb ", Game.bounce_backs, " day ", Game.day)
 	Game.end_run()
 	print("final ", Game.final_net_worth, " lowest ", Game.lowest_net_worth, " on day ", Game.lowest_day)
 	get_tree().quit()

@@ -1,5 +1,7 @@
 extends Control
 
+const BACKGROUND := "res://assets/backgrounds/title_exchange.png"
+
 var how_overlay: Control
 
 
@@ -9,6 +11,28 @@ func _ready() -> void:
 	bg.color = C.BG_BASE
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	# The exchange building, rendered in Blender (art/blender/exchange.py).
+	var pic := TextureRect.new()
+	pic.texture = load(BACKGROUND)
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	pic.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(pic)
+	# Darker in the middle so the title and buttons stay readable.
+	var g := Gradient.new()
+	g.set_color(0, Color(C.BG_BASE, 0.78))
+	g.set_color(1, Color(C.BG_BASE, 0.2))
+	var shade_tex := GradientTexture2D.new()
+	shade_tex.gradient = g
+	shade_tex.fill = GradientTexture2D.FILL_RADIAL
+	shade_tex.fill_from = Vector2(0.5, 0.5)
+	shade_tex.fill_to = Vector2(1.05, 0.5)
+	var shade := TextureRect.new()
+	shade.texture = shade_tex
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(shade)
 	var line := MarketLine.new()
 	line.position = Vector2(0, 610)
 	line.size = Vector2(1280, 110)
